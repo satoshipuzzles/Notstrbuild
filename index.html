@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Media Upload and Nostr Integration</title>
+  <!-- Include Nostr Tools -->
+  <script src="https://unpkg.com/nostr-tools@1.7.1/lib/nostr.bundle.js"></script>
+  <!-- Include SortableJS for drag-and-drop -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+  <!-- Include Bech32 Library -->
+  <script src="https://cdn.jsdelivr.net/npm/bech32@1.1.4/index.min.js"></script>
+  <!-- Include Bitcoin Connect for Wallet Connection -->
+  <script type="module">
+    import { init, launchPaymentModal } from 'https://esm.sh/@getalby/bitcoin-connect@3.6.2';
+
+    // Initialize Bitcoin Connect
+    init({
+      appName: 'Media Uploader', // Your app name
+    });
+  </script>
+  <style>
+    /* CSS Styles */
+    :root {
+      --header-color: #4a90e2;
+      --background-color: #f9f9f9;
+      --background-image: none;
+      --text-color: #333;
+      --tab-bg-color: #fff;
+      --tab-text-color: #333;
+      --button-bg-color: #4a90e2;
+      --button-text-color: #fff;
+    }
+
+    body {
+      font-family: 'Open Sans', sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--header-color);
+      color: white;
+      padding: 10px 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .profile-pic {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: white;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .profile-pic img {
+      width: 100%;
+      height: 100%;
+    }
+
+    .profile-pic .emoji {
+      font-size: 30px;
+    }
+
+    #signInBtn {
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      padding: 10px 15px;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    .tabs {
+      display: flex;
+      background-color: var(--tab-bg-color);
+      border-bottom: 1px solid #ddd;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 15px;
+      text-align: center;
+      cursor: pointer;
+      color: var(--tab-text-color);
+      background-color: var(--tab-bg-color);
+      transition: background-color 0.3s ease;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab.active {
+      border-bottom: 2px solid var(--header-color);
+      font-weight: bold;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 20px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .upload-box {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    input[type="file"] {
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .link-box {
+      margin-top: 20px;
+      display: none;
+      text-align: center;
+      word-break: break-all;
+    }
+
+    .link-box a {
+      color: var(--header-color);
+      text-decoration: none;
+    }
+
+    #media-preview {
+      max-width: 100%;
+      max-height: 250px;
+      display: none;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+
+    .save-btn {
+      display: none;
+      margin-top: 10px;
+      padding: 12px 20px;
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    .uploads-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    .upload-item {
+      width: 200px;
+      text-align: center;
+      background-color: white;
+      padding: 10px;
+      border-radius: 8px;
+      position: relative;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .upload-item img,
+    .upload-item video,
+    .upload-item audio {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .upload-item h4,
+    .upload-item p {
+      margin: 10px 0;
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    .upload-item a {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--header-color);
+      text-decoration: none;
+    }
+
+    .copy-btn {
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      padding: 10px 15px;
+      cursor: pointer;
+      border-radius: 5px;
+      margin-top: 5px;
+      font-size: 16px;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background-color: red;
+      color: white;
+      border: none;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 25px;
+      text-align: center;
+      padding: 0;
+    }
+
+    .edit-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background-color: transparent;
+      color: #333;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .author-info {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 5px;
+    }
+
+    .author-info img {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+
+    .author-info .nip05 {
+      font-size: 12px;
+      color: #666;
+      word-break: break-all;
+    }
+
+    /* Settings Popup */
+    .settings-popup {
+      display: none;
+      position: fixed;
+      top: 5%;
+      left: 50%;
+      transform: translate(-50%, -5%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      z-index: 1000;
+      width: 600px; /* Increased width */
+      max-width: 90%;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      overflow-y: auto;
+      max-height: 90%;
+    }
+
+    .settings-popup h3 {
+      margin-top: 0;
+    }
+
+    .settings-tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+
+    .settings-tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      background-color: #f5f5f5;
+      border-bottom: 2px solid transparent;
+    }
+
+    .settings-tab.active {
+      border-bottom: 2px solid var(--header-color);
+      background-color: #fff;
+      font-weight: bold;
+    }
+
+    .settings-content {
+      display: none;
+    }
+
+    .settings-content.active {
+      display: block;
+    }
+
+    .settings-popup label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .settings-popup label input,
+    .settings-popup label textarea,
+    .settings-popup .color-picker input {
+      margin-top: 5px;
+      width: 100%;
+      padding: 8px;
+      font-size: 14px; /* Adjusted font size */
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .settings-popup .color-picker {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .settings-popup .color-picker label {
+      margin-right: 10px;
+      margin-bottom: 0;
+      flex: 1;
+    }
+
+    .settings-popup .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .settings-popup button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    /* Overlay */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      z-index: 999;
+    }
+
+    /* Save Changes Button */
+    #saveChangesBtn {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      border-radius: 5px;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    /* Popup Styles */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .popup-content {
+      position: relative;
+      max-width: 90%;
+      max-height: 90%;
+    }
+
+    .popup-content img,
+    .popup-content video,
+    .popup-content audio {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .popup-content .close-popup-btn {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      background-color: transparent;
+      border: none;
+      font-size: 40px;
+      color: white;
+      cursor: pointer;
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      z-index: 2000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      max-width: 90%;
+      max-height: 90%;
+      overflow-y: auto;
+    }
+
+    .modal h3 {
+      margin-top: 0;
+    }
+
+    .modal .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    /* Overlay for Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1999;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 600px) {
+      .tabs {
+        flex-direction: column;
+      }
+
+      .tab {
+        padding: 20px;
+        font-size: 18px;
+      }
+
+      .upload-item {
+        width: 100%;
+      }
+
+      .upload-item img,
+      .upload-item video,
+      .upload-item audio {
+        height: auto;
+      }
+
+      .upload-box input[type="file"] {
+        width: 100%;
+        font-size: 18px;
+      }
+
+      #media-preview {
+        width: 100%;
+      }
+
+      input[type="text"],
+      textarea {
+        width: 100%;
+        font-size: 18px;
+      }
+
+      button, .copy-btn {
+        font-size: 18px;
+        padding: 14px 20px;
+      }
+
+      .save-btn {
+        width: 100%;
+        max-width: 300px;
+      }
+
+      .settings-popup {
+        width: 90%;
+      }
+
+      .upload-box input[type="file"] {
+        font-size: 18px;
+      }
+
+      .delete-btn,
+      .edit-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 22px;
+        line-height: 30px;
+      }
+    }
+
+    /* Button Styles */
+    button {
+      padding: 12px 20px;
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: #357ABD;
+    }
+
+    /* General Styles */
+    a {
+      color: var(--header-color);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    input[type="text"],
+    textarea {
+      padding: 12px;
+      width: 100%;
+      max-width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-top: 10px;
+      font-size: 16px;
+    }
+
+    /* Background Image */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: var(--background-image);
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      z-index: -1;
+      opacity: 0.5;
+    }
+
+    /* Remove Zap Buttons from Uploaders Section */
+    .zap-btn {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Media Uploader</h1>
+    <div class="profile-pic" id="profilePic">
+      <span class="emoji">🤖</span>
+    </div>
+    <!-- Add the Sign In button -->
+    <button id="signInBtn">Sign In</button>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="uploadTab">Upload</div>
+    <div class="tab" data-tab="myUploadsTab">My Uploads</div>
+    <div class="tab" data-tab="uploadedTab">Uploaders</div>
+  </div>
+
+  <div class="content">
+    <!-- Upload Tab -->
+    <div id="uploadTab" class="tab-content active">
+      <div class="upload-box">
+        <input type="file" id="mediaUpload" accept="image/*,video/*,audio/*">
+        <button id="uploadBtn">Upload Media</button>
+        <p id="status"></p>
+        <div id="media-preview"></div>
+        <input type="text" id="fileName" placeholder="Enter file name">
+        <!-- Description Field Moved Below File Name -->
+        <textarea id="descriptionInput" placeholder="Enter description (optional)"></textarea>
+        <div class="link-box" id="linkBox">
+          <p>Your media URL:</p>
+          <a id="mediaLink" href="" target="_blank">Click here to view media</a>
+        </div>
+        <button class="save-btn" id="saveBtn">Save to My Uploads</button>
+      </div>
+    </div>
+
+    <!-- My Uploads Tab -->
+    <div id="myUploadsTab" class="tab-content">
+      <h2>My Uploads</h2>
+      <div class="uploads-container" id="myUploadsContainer"></div>
+    </div>
+
+    <!-- Uploaded Tab -->
+    <div id="uploadedTab" class="tab-content">
+      <h2>Uploaders</h2>
+      <div class="uploads-container" id="allUploadsContainer"></div>
+    </div>
+
+    <!-- Settings Popup -->
+    <div class="overlay" id="overlay"></div>
+    <div class="settings-popup" id="settingsPopup">
+      <button class="close-btn" id="closeSettingsBtn">&times;</button>
+      <h3>Settings</h3>
+      <div class="settings-tabs">
+        <div class="settings-tab active" data-tab="generalTab">General</div>
+        <div class="settings-tab" data-tab="appearanceTab">Appearance</div>
+        <div class="settings-tab" data-tab="walletTab">Wallet</div>
+      </div>
+      <div class="settings-content active" id="generalTab">
+        <label>
+          Page Name:
+          <input type="text" id="pageNameInput" placeholder="Enter page name">
+        </label>
+        <label>
+          About Me:
+          <textarea id="aboutMeInput" placeholder="Tell us about yourself"></textarea>
+        </label>
+        <label>
+          Thumbnail Picture URL:
+          <input type="text" id="thumbnailUrlInput" placeholder="Enter image URL">
+        </label>
+        <label>
+          Background Image URL:
+          <input type="text" id="backgroundImageInput" placeholder="Enter image URL">
+        </label>
+        <label>
+          <input type="checkbox" id="autoSaveCheckbox">
+          Automatically save uploads
+        </label>
+      </div>
+      <div class="settings-content" id="appearanceTab">
+        <div class="color-picker">
+          <label for="headerColorInput">Header Color:</label>
+          <input type="color" id="headerColorInput" value="#4a90e2">
+        </div>
+        <div class="color-picker">
+          <label for="backgroundColorInput">Background Color:</label>
+          <input type="color" id="backgroundColorInput" value="#f9f9f9">
+        </div>
+        <div class="color-picker">
+          <label for="textColorInput">Text Color:</label>
+          <input type="color" id="textColorInput" value="#333333">
+        </div>
+        <div class="color-picker">
+          <label for="tabBgColorInput">Tab Background Color:</label>
+          <input type="color" id="tabBgColorInput" value="#ffffff">
+        </div>
+        <div class="color-picker">
+          <label for="tabTextColorInput">Tab Text Color:</label>
+          <input type="color" id="tabTextColorInput" value="#333333">
+        </div>
+        <div class="color-picker">
+          <label for="buttonBgColorInput">Button Background Color:</label>
+          <input type="color" id="buttonBgColorInput" value="#4a90e2">
+        </div>
+        <div class="color-picker">
+          <label for="buttonTextColorInput">Button Text Color:</label>
+          <input type="color" id="buttonTextColorInput" value="#ffffff">
+        </div>
+      </div>
+      <!-- Wallet Tab -->
+      <div class="settings-content" id="walletTab">
+        <button id="connectWalletBtn">Connect Wallet</button>
+        <p id="walletStatus">Wallet not connected.</p>
+      </div>
+      <button id="saveSettingsBtn">Save Settings</button>
+    </div>
+
+    <!-- Save Changes Button -->
+    <button id="saveChangesBtn">Save Changes</button>
+
+    <!-- Popup for fullscreen media -->
+    <div class="popup" id="popup">
+      <div class="popup-content" id="popupContent">
+        <button class="close-popup-btn" id="closePopupBtn">&times;</button>
+      </div>
+    </div>
+
+    <!-- Modal for Editing Name and Description -->
+    <div class="modal-overlay" id="editModalOverlay"></div>
+    <div class="modal" id="editModal">
+      <button class="close-btn" id="closeEditModalBtn">&times;</button>
+      <h3>Edit Media Details</h3>
+      <label>
+        File Name:
+        <input type="text" id="editFileName" placeholder="Enter file name">
+      </label>
+      <label>
+        Description:
+        <textarea id="editDescription" placeholder="Enter description (optional)"></textarea>
+      </label>
+      <button id="saveEditBtn">Save Changes</button>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Code -->
+  <script>
+    // Wrap all JavaScript code inside DOMContentLoaded event listener
+    window.addEventListener('DOMContentLoaded', () => {
+      // Access NostrTools functions
+      const { relayInit, getEventHash } = NostrTools;
+
+      // Relay URLs
+      const profileRelayUrl = "wss://relay.damus.io"; // For fetching profiles
+      const publishRelayUrl = "wss://relay.nostrfreaks.com"; // For publishing events
+
+      let pubkey = "";
+      let currentMediaUrl = "";
+      let currentMediaType = "";
+      let existingNote = null;
+      let autoSave = false;
+      let unsavedChanges = false;
+      let walletConnected = false;
+
+      // User Settings
+      let pageName = "";
+      let aboutMe = "";
+      let headerColor = "#4a90e2";
+      let backgroundColor = "#f9f9f9";
+      let backgroundImage = "";
+      let thumbnailUrl = "";
+      let textColor = "#333333";
+      let tabBgColor = "#ffffff";
+      let tabTextColor = "#333333";
+      let buttonBgColor = "#4a90e2";
+      let buttonTextColor = "#ffffff";
+
+      // Get DOM elements
+      const signInBtn = document.getElementById('signInBtn');
+      const profilePic = document.getElementById('profilePic');
+      const tabs = document.querySelectorAll('.tab');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      const mediaUpload = document.getElementById('mediaUpload');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const status = document.getElementById('status');
+      const linkBox = document.getElementById('linkBox');
+      const mediaLink = document.getElementById('mediaLink');
+      const mediaPreview = document.getElementById('media-preview');
+      const saveBtn = document.getElementById('saveBtn');
+      const fileNameInput = document.getElementById('fileName');
+      const descriptionInput = document.getElementById('descriptionInput');
+
+      const myUploadsContainer = document.getElementById('myUploadsContainer');
+      const allUploadsContainer = document.getElementById('allUploadsContainer');
+
+      const settingsPopup = document.getElementById('settingsPopup');
+      const overlay = document.getElementById('overlay');
+      const autoSaveCheckbox = document.getElementById('autoSaveCheckbox');
+      const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+      const thumbnailUrlInput = document.getElementById('thumbnailUrlInput');
+      const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+      const pageNameInput = document.getElementById('pageNameInput');
+      const aboutMeInput = document.getElementById('aboutMeInput');
+      const headerColorInput = document.getElementById('headerColorInput');
+      const backgroundColorInput = document.getElementById('backgroundColorInput');
+      const backgroundImageInput = document.getElementById('backgroundImageInput');
+      const textColorInput = document.getElementById('textColorInput');
+      const tabBgColorInput = document.getElementById('tabBgColorInput');
+      const tabTextColorInput = document.getElementById('tabTextColorInput');
+      const buttonBgColorInput = document.getElementById('buttonBgColorInput');
+      const buttonTextColorInput = document.getElementById('buttonTextColorInput');
+
+      const saveChangesBtn = document.getElementById('saveChangesBtn');
+
+      const popup = document.getElementById('popup');
+      const popupContent = document.getElementById('popupContent');
+      const closePopupBtn = document.getElementById('closePopupBtn');
+
+      const settingsTabs = document.querySelectorAll('.settings-tab');
+      const settingsContents = document.querySelectorAll('.settings-content');
+
+      const walletTab = document.getElementById('walletTab');
+      const connectWalletBtn = document.getElementById('connectWalletBtn');
+      const walletStatus = document.getElementById('walletStatus');
+
+      // Variables for Edit Modal
+      const editModal = document.getElementById('editModal');
+      const editModalOverlay = document.getElementById('editModalOverlay');
+      const closeEditModalBtn = document.getElementById('closeEditModalBtn');
+      const editFileNameInput = document.getElementById('editFileName');
+      const editDescriptionInput = document.getElementById('editDescription');
+      const saveEditBtn = document.getElementById('saveEditBtn');
+      let currentEditItem = null;
+
+      // Handle Settings Tabs Switching
+      settingsTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          settingsTabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+
+          settingsContents.forEach(content => content.classList.remove('active'));
+          document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+      });
+
+      // Display Robot Emoji when not logged in
+      if (!localStorage.getItem('pubkey')) {
+        profilePic.innerHTML = `<span class="emoji">🤖</span>`;
+        signInBtn.style.display = 'inline-block';
+        profilePic.addEventListener('click', async () => {
+          // User is not signed in, initiate sign-in
+          if (window.nostr) {
+            try {
+              pubkey = await window.nostr.getPublicKey();
+              localStorage.setItem('pubkey', pubkey);
+              await loadUserProfile(pubkey);
+              await checkExistingNote();
+              await loadUserSettings();
+              if (autoSaveCheckbox.checked) {
+                autoSave = true;
+              }
+            } catch (error) {
+              console.error('Error during sign-in:', error);
+            }
+          } else {
+            alert('NIP-07 extension not found. Please install Alby or nos2x.');
+          }
+        });
+      } else {
+        pubkey = localStorage.getItem('pubkey');
+        loadUserProfile(pubkey);
+        checkExistingNote();
+        loadUserSettings();
+        signInBtn.style.display = 'none'; // Hide sign-in button if already signed in
+      }
+
+      // Handle NIP-07 Sign-in
+      signInBtn.addEventListener('click', async () => {
+        if (window.nostr) {
+          try {
+            pubkey = await window.nostr.getPublicKey();
+            localStorage.setItem('pubkey', pubkey);
+            await loadUserProfile(pubkey);
+            await checkExistingNote();
+            await loadUserSettings();
+            if (autoSaveCheckbox.checked) {
+              autoSave = true;
+            }
+            signInBtn.style.display = 'none'; // Hide sign-in button after signing in
+          } catch (error) {
+            console.error('Error during sign-in:', error);
+          }
+        } else {
+          alert('NIP-07 extension not found. Please install Alby or nos2x.');
+        }
+      });
+
+      // Load User Profile
+      async function loadUserProfile(pubkey) {
+        const profile = await fetchProfile(pubkey);
+        if (profile && profile.picture) {
+          profilePic.innerHTML = `<img src="${profile.picture}" alt="Profile Picture">`;
+        } else {
+          profilePic.innerHTML = `<img src="default-profile.png" alt="Profile Picture">`;
+        }
+        profilePic.addEventListener('click', () => {
+          settingsPopup.style.display = 'block';
+          overlay.style.display = 'block';
+        });
+      }
+
+      // Close Settings Popup
+      closeSettingsBtn.addEventListener('click', () => {
+        settingsPopup.style.display = 'none';
+        overlay.style.display = 'none';
+      });
+
+      overlay.addEventListener('click', () => {
+        settingsPopup.style.display = 'none';
+        overlay.style.display = 'none';
+      });
+
+      // Handle Tabs Switching
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+
+          tabContents.forEach(content => content.classList.remove('active'));
+          document.getElementById(tab.dataset.tab).classList.add('active');
+
+          if (tab.dataset.tab === 'myUploadsTab') {
+            loadMyUploads();
+          } else if (tab.dataset.tab === 'uploadedTab') {
+            loadAllUploads();
+          }
+        });
+      });
+
+      // Upload Media
+      uploadBtn.addEventListener('click', async () => {
+        const file = mediaUpload.files[0];
+
+        if (!file) {
+          status.textContent = 'Please select a media file.';
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        status.textContent = 'Uploading...';
+
+        try {
+          // Upload media to nostr.build
+          const response = await fetch('https://nostr.build/api/v2/upload/files', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const result = await response.json();
+
+          if (result.status === 'success') {
+            currentMediaUrl = result.data[0].url;
+            currentMediaType = file.type;
+            status.textContent = 'Upload successful!';
+            mediaLink.href = currentMediaUrl;
+            mediaLink.textContent = currentMediaUrl;
+
+            renderMediaPreview(currentMediaUrl, currentMediaType);
+
+            linkBox.style.display = 'block';
+            saveBtn.style.display = 'inline-block';
+
+            if (autoSave) {
+              await saveMedia();
+            }
+          } else {
+            status.textContent = 'Upload failed. Please try again.';
+          }
+        } catch (error) {
+          status.textContent = 'An error occurred during the upload. Please try again.';
+        }
+      });
+
+      function renderMediaPreview(url, type) {
+        mediaPreview.innerHTML = '';
+        if (type.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = url;
+          img.style.borderRadius = '8px';
+          img.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+          img.style.maxHeight = '250px'; // Slightly larger than thumbnails
+          mediaPreview.appendChild(img);
+        } else if (type.startsWith('video/')) {
+          const video = document.createElement('video');
+          video.src = url;
+          video.controls = true;
+          video.style.borderRadius = '8px';
+          video.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+          video.style.maxHeight = '250px'; // Slightly larger than thumbnails
+          mediaPreview.appendChild(video);
+        } else if (type.startsWith('audio/')) {
+          const audio = document.createElement('audio');
+          audio.src = url;
+          audio.controls = true;
+          audio.style.width = '100%';
+          mediaPreview.appendChild(audio);
+        }
+        mediaPreview.style.display = 'block';
+      }
+
+      // Save Media to Nostr Event
+      saveBtn.addEventListener('click', async () => {
+        await saveMedia();
+      });
+
+      async function saveMedia() {
+        if (!pubkey) {
+          alert('Please sign in first.');
+          return;
+        }
+
+        const fileName = fileNameInput.value || 'Unnamed File';
+        const description = descriptionInput.value || '';
+
+        try {
+          // Check if existing note exists
+          if (existingNote) {
+            // Append new 'r' tag with description
+            existingNote.tags.push(['r', currentMediaUrl, fileName, description]);
+            existingNote.created_at = Math.floor(Date.now() / 1000);
+            existingNote.id = getEventHash(existingNote);
+            existingNote = await window.nostr.signEvent(existingNote);
+
+            // Publish the event
+            await publishEvent(existingNote);
+            alert('Media saved to your uploads.');
+          } else {
+            // Create new note
+            const tags = [
+              ['d', fileName],
+              ['r', currentMediaUrl, fileName, description],
+              ['t', 'thumbnail', thumbnailUrl || '']
+            ];
+
+            let event = {
+              kind: 36969,
+              pubkey: pubkey,
+              created_at: Math.floor(Date.now() / 1000),
+              tags: tags,
+              content: '',
+            };
+
+            event.id = getEventHash(event);
+            event = await window.nostr.signEvent(event);
+
+            // Publish the event
+            await publishEvent(event);
+            existingNote = event;
+            alert('Media saved to your uploads.');
+          }
+        } catch (error) {
+          console.error('Error saving media:', error);
+          alert('Failed to save media.');
+        }
+      }
+
+      // Fetch User's Existing kind 36969 Note
+      async function checkExistingNote() {
+        const filter = { kinds: [36969], authors: [pubkey] };
+        const notes = await queryRelay(publishRelayUrl, filter);
+        if (notes.length > 0) {
+          existingNote = notes[0];
+          // Check for thumbnail URL in tags
+          const thumbnailTag = existingNote.tags.find(tag => tag[0] === 't' && tag[1] === 'thumbnail');
+          if (thumbnailTag) {
+            thumbnailUrl = thumbnailTag[2];
+            thumbnailUrlInput.value = thumbnailUrl;
+          }
+        }
+      }
+
+      // Fetch User's Settings (kind 1337)
+      async function loadUserSettings() {
+        const filter = { kinds: [1337], authors: [pubkey] };
+        const settingsNotes = await queryRelay(publishRelayUrl, filter);
+        if (settingsNotes.length > 0) {
+          const settingsNote = settingsNotes[0];
+          const tags = settingsNote.tags;
+
+          const pageNameTag = tags.find(tag => tag[0] === 'pagename');
+          if (pageNameTag) {
+            pageName = pageNameTag[1];
+            pageNameInput.value = pageName;
+          }
+
+          const aboutMeTag = tags.find(tag => tag[0] === 'aboutme');
+          if (aboutMeTag) {
+            aboutMe = aboutMeTag[1];
+            aboutMeInput.value = aboutMe;
+          }
+
+          const headerColorTag = tags.find(tag => tag[0] === 'headercolor');
+          if (headerColorTag) {
+            headerColor = headerColorTag[1];
+            headerColorInput.value = headerColor;
+            document.documentElement.style.setProperty('--header-color', headerColor);
+          }
+
+          const backgroundColorTag = tags.find(tag => tag[0] === 'backgroundcolor');
+          if (backgroundColorTag) {
+            backgroundColor = backgroundColorTag[1];
+            backgroundColorInput.value = backgroundColor;
+            document.documentElement.style.setProperty('--background-color', backgroundColor);
+          }
+
+          const backgroundImageTag = tags.find(tag => tag[0] === 'backgroundimage');
+          if (backgroundImageTag) {
+            backgroundImage = backgroundImageTag[1];
+            backgroundImageInput.value = backgroundImage;
+            document.documentElement.style.setProperty('--background-image', `url('${backgroundImage}')`);
+          }
+
+          const textColorTag = tags.find(tag => tag[0] === 'textcolor');
+          if (textColorTag) {
+            textColor = textColorTag[1];
+            textColorInput.value = textColor;
+            document.documentElement.style.setProperty('--text-color', textColor);
+          }
+
+          const tabBgColorTag = tags.find(tag => tag[0] === 'tabbgcolor');
+          if (tabBgColorTag) {
+            tabBgColor = tabBgColorTag[1];
+            tabBgColorInput.value = tabBgColor;
+            document.documentElement.style.setProperty('--tab-bg-color', tabBgColor);
+          }
+
+          const tabTextColorTag = tags.find(tag => tag[0] === 'tabtextcolor');
+          if (tabTextColorTag) {
+            tabTextColor = tabTextColorTag[1];
+            tabTextColorInput.value = tabTextColor;
+            document.documentElement.style.setProperty('--tab-text-color', tabTextColor);
+          }
+
+          const buttonBgColorTag = tags.find(tag => tag[0] === 'buttonbgcolor');
+          if (buttonBgColorTag) {
+            buttonBgColor = buttonBgColorTag[1];
+            buttonBgColorInput.value = buttonBgColor;
+            document.documentElement.style.setProperty('--button-bg-color', buttonBgColor);
+          }
+
+          const buttonTextColorTag = tags.find(tag => tag[0] === 'buttontextcolor');
+          if (buttonTextColorTag) {
+            buttonTextColor = buttonTextColorTag[1];
+            buttonTextColorInput.value = buttonTextColor;
+            document.documentElement.style.setProperty('--button-text-color', buttonTextColor);
+          }
+        }
+      }
+
+      // Save Settings
+      saveSettingsBtn.addEventListener('click', async () => {
+        if (!pubkey) {
+          alert('Please sign in first.');
+          return;
+        }
+
+        pageName = pageNameInput.value.trim();
+        aboutMe = aboutMeInput.value.trim();
+        headerColor = headerColorInput.value;
+        backgroundColor = backgroundColorInput.value;
+        backgroundImage = backgroundImageInput.value.trim();
+        thumbnailUrl = thumbnailUrlInput.value.trim();
+        textColor = textColorInput.value;
+        tabBgColor = tabBgColorInput.value;
+        tabTextColor = tabTextColorInput.value;
+        buttonBgColor = buttonBgColorInput.value;
+        buttonTextColor = buttonTextColorInput.value;
+
+        autoSave = autoSaveCheckbox.checked;
+        localStorage.setItem('autoSave', autoSave);
+
+        // Apply styles immediately
+        document.documentElement.style.setProperty('--header-color', headerColor);
+        document.documentElement.style.setProperty('--background-color', backgroundColor);
+        if (backgroundImage) {
+          document.documentElement.style.setProperty('--background-image', `url('${backgroundImage}')`);
+        } else {
+          document.documentElement.style.setProperty('--background-image', 'none');
+        }
+        document.documentElement.style.setProperty('--text-color', textColor);
+        document.documentElement.style.setProperty('--tab-bg-color', tabBgColor);
+        document.documentElement.style.setProperty('--tab-text-color', tabTextColor);
+        document.documentElement.style.setProperty('--button-bg-color', buttonBgColor);
+        document.documentElement.style.setProperty('--button-text-color', buttonTextColor);
+
+        // Prepare event
+        const tags = [
+          ['pagename', pageName],
+          ['aboutme', aboutMe],
+          ['headercolor', headerColor],
+          ['backgroundcolor', backgroundColor],
+          ['backgroundimage', backgroundImage],
+          ['textcolor', textColor],
+          ['tabbgcolor', tabBgColor],
+          ['tabtextcolor', tabTextColor],
+          ['buttonbgcolor', buttonBgColor],
+          ['buttontextcolor', buttonTextColor]
+        ];
+
+        let event = {
+          kind: 1337,
+          pubkey: pubkey,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: tags,
+          content: '',
+        };
+
+        event.id = getEventHash(event);
+        event = await window.nostr.signEvent(event);
+
+        // Publish the event
+        await publishEvent(event);
+        alert('Settings saved.');
+        settingsPopup.style.display = 'none';
+        overlay.style.display = 'none';
+      });
+
+      function markUnsavedChanges() {
+        unsavedChanges = true;
+        saveChangesBtn.style.display = 'block';
+      }
+
+      // Save Changes Button Handler
+      saveChangesBtn.addEventListener('click', async () => {
+        if (!pubkey || !existingNote) {
+          alert('No changes to save.');
+          return;
+        }
+
+        // Collect the new order of media URLs
+        const updatedRTags = [];
+        const uploadItems = myUploadsContainer.querySelectorAll('.upload-item');
+        uploadItems.forEach(item => {
+          const mediaUrl = item.dataset.mediaUrl;
+          const mediaName = item.dataset.mediaName || 'Unnamed';
+          const mediaDescription = item.dataset.mediaDescription || '';
+          updatedRTags.push(['r', mediaUrl, mediaName, mediaDescription]);
+        });
+
+        // Update the existing note
+        existingNote.tags = existingNote.tags.filter(tag => tag[0] !== 'r');
+        existingNote.tags = existingNote.tags.concat(updatedRTags);
+
+        // Update thumbnail if changed
+        const existingThumbnailTagIndex = existingNote.tags.findIndex(tag => tag[0] === 't' && tag[1] === 'thumbnail');
+        if (existingThumbnailTagIndex !== -1) {
+          existingNote.tags[existingThumbnailTagIndex][2] = thumbnailUrl || '';
+        } else {
+          existingNote.tags.push(['t', 'thumbnail', thumbnailUrl || '']);
+        }
+
+        existingNote.created_at = Math.floor(Date.now() / 1000);
+        existingNote.id = getEventHash(existingNote);
+        existingNote = await window.nostr.signEvent(existingNote);
+
+        // Publish the event
+        await publishEvent(existingNote);
+        alert('Changes saved.');
+        unsavedChanges = false;
+        saveChangesBtn.style.display = 'none';
+      });
+
+      // Load My Uploads
+      async function loadMyUploads() {
+        if (!pubkey) {
+          alert('Please sign in to view your uploads.');
+          return;
+        }
+
+        const filter = { kinds: [36969], authors: [pubkey] };
+        const notes = await queryRelay(publishRelayUrl, filter);
+
+        myUploadsContainer.innerHTML = '';
+
+        if (notes.length > 0) {
+          const note = notes[0];
+          existingNote = note;
+          const rTags = note.tags.filter(tag => tag[0] === 'r');
+
+          rTags.forEach((tag, index) => {
+            const mediaUrl = tag[1];
+            const mediaName = tag[2] || 'Unnamed';
+            const mediaDescription = tag[3] || '';
+            const mediaType = getMediaType(mediaUrl);
+            const uploadItem = document.createElement('div');
+            uploadItem.classList.add('upload-item');
+            uploadItem.dataset.index = index;
+            uploadItem.dataset.mediaUrl = mediaUrl;
+            uploadItem.dataset.mediaName = mediaName;
+            uploadItem.dataset.mediaDescription = mediaDescription;
+
+            const mediaElement = createMediaElement(mediaUrl, mediaType);
+            uploadItem.appendChild(mediaElement);
+
+            uploadItem.innerHTML += `
+              <h4>${mediaName}</h4>
+              <p>${mediaDescription}</p>
+              <a href="${mediaUrl}" target="_blank">${mediaUrl}</a>
+              <button class="copy-btn">Copy Link</button>
+              <button class="delete-btn">&times;</button>
+            `;
+            myUploadsContainer.appendChild(uploadItem);
+
+            // Copy Link functionality
+            const copyBtn = uploadItem.querySelector('.copy-btn');
+            copyBtn.addEventListener('click', () => {
+              navigator.clipboard.writeText(mediaUrl);
+              alert('Link copied to clipboard!');
+            });
+
+            // Delete functionality
+            const deleteBtn = uploadItem.querySelector('.delete-btn');
+            deleteBtn.addEventListener('click', () => {
+              uploadItem.remove();
+              markUnsavedChanges();
+            });
+
+            // Media click for popup
+            mediaElement.addEventListener('click', () => {
+              popupContent.innerHTML = `
+                <button class="close-popup-btn" id="closePopupBtn">&times;</button>
+              `;
+              const popupMediaElement = createMediaElement(mediaUrl, mediaType);
+              popupContent.appendChild(popupMediaElement);
+
+              popup.style.display = 'flex';
+              const closeBtn = popupContent.querySelector('#closePopupBtn');
+              closeBtn.addEventListener('click', () => {
+                popup.style.display = 'none';
+              });
+            });
+
+            // Add Edit Button (Gear Icon)
+            const editBtn = document.createElement('button');
+            editBtn.classList.add('edit-btn');
+            editBtn.innerHTML = '⚙️';
+            uploadItem.appendChild(editBtn);
+
+            // Edit Button functionality
+            editBtn.addEventListener('click', () => {
+              openEditModal(uploadItem);
+            });
+          });
+
+          // Initialize SortableJS for drag-and-drop
+          new Sortable(myUploadsContainer, {
+            animation: 150,
+            onEnd: () => {
+              markUnsavedChanges();
+            }
+          });
+        } else {
+          myUploadsContainer.innerHTML = '<p>No uploads found.</p>';
+        }
+      }
+
+      // Open Edit Modal
+      function openEditModal(item) {
+        currentEditItem = item;
+        editFileNameInput.value = item.dataset.mediaName || 'Unnamed';
+        editDescriptionInput.value = item.dataset.mediaDescription || '';
+        editModal.style.display = 'block';
+        editModalOverlay.style.display = 'block';
+      }
+
+      // Close Edit Modal
+      function closeEditModal() {
+        editModal.style.display = 'none';
+        editModalOverlay.style.display = 'none';
+        currentEditItem = null;
+      }
+
+      closeEditModalBtn.addEventListener('click', closeEditModal);
+      editModalOverlay.addEventListener('click', closeEditModal);
+
+      // Save Edited Details
+      saveEditBtn.addEventListener('click', () => {
+        if (!currentEditItem) return;
+        const newName = editFileNameInput.value.trim();
+        const newDescription = editDescriptionInput.value.trim();
+
+        currentEditItem.dataset.mediaName = newName;
+        currentEditItem.dataset.mediaDescription = newDescription;
+
+        // Update display
+        currentEditItem.querySelector('h4').textContent = newName;
+        currentEditItem.querySelector('p').textContent = newDescription;
+
+        // Mark unsaved changes
+        markUnsavedChanges();
+
+        closeEditModal();
+      });
+
+      // Load All Uploads
+      async function loadAllUploads() {
+        const filter = { kinds: [36969] };
+        const notes = await queryRelay(publishRelayUrl, filter);
+
+        allUploadsContainer.innerHTML = '';
+
+        for (const note of notes) {
+          const authorProfile = await fetchProfile(note.pubkey);
+          const authorPicture = authorProfile?.picture || '';
+          const authorNip05 = authorProfile?.nip05 || '';
+          const sanitizedPubkey = note.pubkey;
+
+          const thumbnailTag = note.tags.find(tag => tag[0] === 't' && tag[1] === 'thumbnail');
+          let thumbnailUrl = '';
+          if (thumbnailTag) {
+            thumbnailUrl = thumbnailTag[2];
+          } else {
+            const rTags = note.tags.filter(tag => tag[0] === 'r');
+            thumbnailUrl = rTags[0]?.[1] || '';
+          }
+          const thumbnailType = getMediaType(thumbnailUrl);
+
+          const uploadItem = document.createElement('div');
+          uploadItem.classList.add('upload-item');
+
+          uploadItem.innerHTML = `
+            <div class="author-info">
+              ${authorPicture ? `<img src="${authorPicture}" alt="Author Picture">` : ''}
+              <div class="nip05">${authorNip05}</div>
+            </div>
+          `;
+
+          const mediaElement = createMediaElement(thumbnailUrl, thumbnailType);
+          uploadItem.appendChild(mediaElement);
+
+          // Fetch Author's Settings for Page Name
+          const authorSettings = await fetchAuthorSettings(sanitizedPubkey);
+          const displayName = authorSettings?.pageName || note.tags.find(tag => tag[0] === 'd')?.[1] || 'Unnamed';
+
+          uploadItem.innerHTML += `
+            <h4>${displayName}</h4>
+            <a href="author.html?pubkey=${sanitizedPubkey}" target="_blank">
+              <button class="view-uploads-btn">View All Uploads</button>
+            </a>
+          `;
+
+          // Remove zap button from here
+          // Media click for popup
+          mediaElement.addEventListener('click', () => {
+            popupContent.innerHTML = `
+              <button class="close-popup-btn" id="closePopupBtn">&times;</button>
+            `;
+            const popupMediaElement = createMediaElement(thumbnailUrl, thumbnailType);
+            popupContent.appendChild(popupMediaElement);
+
+            popup.style.display = 'flex';
+            const closeBtn = popupContent.querySelector('#closePopupBtn');
+            closeBtn.addEventListener('click', () => {
+              popup.style.display = 'none';
+            });
+          });
+
+          allUploadsContainer.appendChild(uploadItem);
+        }
+      }
+
+      // Fetch Author's Settings (kind 1337)
+      async function fetchAuthorSettings(authorPubkey) {
+        const filter = { kinds: [1337], authors: [authorPubkey] };
+        const settingsNotes = await queryRelay(publishRelayUrl, filter);
+        if (settingsNotes.length > 0) {
+          const settingsNote = settingsNotes[0];
+          const tags = settingsNote.tags;
+
+          const pageNameTag = tags.find(tag => tag[0] === 'pagename');
+          const pageName = pageNameTag ? pageNameTag[1] : '';
+
+          return {
+            pageName
+          };
+        }
+        return null;
+      }
+
+      // Fetch Profile (Kind 0)
+      async function fetchProfile(pubkey) {
+        const filter = { kinds: [0], authors: [pubkey] };
+        const profiles = await queryRelay(profileRelayUrl, filter);
+        if (profiles.length > 0) {
+          return JSON.parse(profiles[0].content);
+        }
+        return null;
+      }
+
+      // Query a single relay
+      async function queryRelay(relayUrl, filter) {
+        const events = [];
+        try {
+          const relay = relayInit(relayUrl);
+          await relay.connect();
+          const sub = relay.sub([filter]);
+          sub.on('event', event => {
+            events.push(event);
+          });
+          await new Promise(resolve => {
+            sub.on('eose', () => {
+              sub.unsub();
+              relay.close();
+              resolve();
+            });
+          });
+        } catch (error) {
+          console.error(`Error querying relay ${relayUrl}:`, error);
+        }
+        return events;
+      }
+
+      // Publish Event to a single relay
+      async function publishEvent(event) {
+        const relayUrl = publishRelayUrl;
+        try {
+          const relay = relayInit(relayUrl);
+          await relay.connect();
+          const pub = relay.publish(event);
+          await new Promise((resolve, reject) => {
+            pub.on('ok', () => {
+              console.log(`Event published to ${relayUrl}`);
+              relay.close();
+              resolve();
+            });
+            pub.on('failed', reason => {
+              console.error(`Failed to publish to ${relayUrl}: ${reason}`);
+              relay.close();
+              reject(reason);
+            });
+          });
+        } catch (error) {
+          console.error(`Error publishing to relay ${relayUrl}:`, error);
+        }
+      }
+
+      // Handle Auto Save Setting
+      autoSaveCheckbox.addEventListener('change', () => {
+        autoSave = autoSaveCheckbox.checked;
+        localStorage.setItem('autoSave', autoSave);
+      });
+
+      // Load existing auto-save setting on page load
+      window.addEventListener('load', async () => {
+        if (localStorage.getItem('pubkey')) {
+          pubkey = localStorage.getItem('pubkey');
+          await loadUserProfile(pubkey);
+          await checkExistingNote();
+          await loadUserSettings();
+          signInBtn.style.display = 'none'; // Hide sign-in button if already signed in
+        }
+        if (localStorage.getItem('autoSave') === 'true') {
+          autoSave = true;
+          autoSaveCheckbox.checked = true;
+        }
+      });
+
+      // Popup Close Button
+      closePopupBtn.addEventListener('click', () => {
+        popup.style.display = 'none';
+      });
+
+      function getMediaType(url) {
+        const extension = url.split('.').pop().split(/\#|\?/)[0].toLowerCase();
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+        const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
+        const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
+
+        if (imageExtensions.includes(extension)) {
+          return 'image';
+        } else if (videoExtensions.includes(extension)) {
+          return 'video';
+        } else if (audioExtensions.includes(extension)) {
+          return 'audio';
+        } else {
+          return 'unknown';
+        }
+      }
+
+      function createMediaElement(url, type) {
+        let element;
+        if (type === 'image') {
+          element = document.createElement('img');
+          element.src = url;
+        } else if (type === 'video') {
+          element = document.createElement('video');
+          element.src = url;
+          element.controls = true;
+        } else if (type === 'audio') {
+          element = document.createElement('audio');
+          element.src = url;
+          element.controls = true;
+        } else {
+          element = document.createElement('div');
+          element.textContent = 'Unsupported media type';
+        }
+        element.style.borderRadius = '8px';
+        element.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+        element.style.cursor = 'pointer';
+        return element;
+      }
+
+      // Handle Wallet Connection
+      connectWalletBtn.addEventListener('click', async () => {
+        try {
+          // Initialize Bitcoin Connect
+          await window.BitcoinConnect.connect();
+          walletConnected = true;
+          walletStatus.textContent = 'Wallet connected.';
+          connectWalletBtn.textContent = 'Disconnect Wallet';
+        } catch (error) {
+          console.error('Error connecting wallet:', error);
+          alert('Failed to connect wallet.');
+        }
+      });
+
+      // Update Zap Functionality to Use Bitcoin Connect
+      // Implement zap functionality using Bitcoin Connect where necessary
+
+    });
+  </script>
+
+</body>
+</html>
