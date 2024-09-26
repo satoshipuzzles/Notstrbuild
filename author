@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Author's Uploads</title>
+  <!-- Include Nostr Tools -->
+  <script src="https://unpkg.com/nostr-tools@1.7.1/lib/nostr.bundle.js"></script>
+  <!-- Include Bech32 Library -->
+  <script src="https://cdn.jsdelivr.net/npm/bech32@1.1.4/index.min.js"></script>
+  <!-- Include Bitcoin Connect for Zaps -->
+  <script type="module">
+    import { init, launchPaymentModal } from 'https://esm.sh/@getalby/bitcoin-connect@3.6.2';
+
+    // Initialize Bitcoin Connect
+    init({
+      appName: 'Media Uploader', // Your app name
+    });
+  </script>
+  <style>
+    /* CSS Styles */
+    :root {
+      --header-color: #4a90e2;
+      --background-color: #f9f9f9;
+      --background-image: none;
+      --text-color: #333;
+      --button-bg-color: #4a90e2;
+      --button-text-color: #fff;
+    }
+
+    body {
+      font-family: 'Open Sans', sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: var(--header-color);
+      color: white;
+      padding: 10px 20px;
+      position: relative;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    /* Profile Pic and Sign In Button */
+    .header-right {
+      position: absolute;
+      right: 20px;
+      display: flex;
+      align-items: center;
+    }
+
+    .profile-pic {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: white;
+      overflow: hidden;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 10px;
+    }
+
+    .profile-pic img {
+      width: 100%;
+      height: 100%;
+    }
+
+    .profile-pic .emoji {
+      font-size: 30px;
+    }
+
+    #signInBtn {
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      padding: 10px 15px;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    /* Zap Button in Header */
+    .header-zap-btn {
+      font-size: 24px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: #fff;
+      margin-left: 20px;
+    }
+
+    .header-zap-btn:hover {
+      color: #FFD700;
+    }
+
+    .author-page {
+      padding: 20px;
+      text-align: center;
+    }
+
+    .about-me {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+
+    .uploads-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .upload-item {
+      width: 200px;
+      text-align: center;
+      background-color: white;
+      padding: 10px;
+      border-radius: 8px;
+      position: relative;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .upload-item img,
+    .upload-item video,
+    .upload-item audio {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .upload-item h4,
+    .upload-item p {
+      margin: 10px 0;
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    /* Popup Styles */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .popup-content {
+      position: relative;
+      max-width: 90%;
+      max-height: 90%;
+    }
+
+    .popup-content img,
+    .popup-content video,
+    .popup-content audio {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      background-color: transparent;
+      border: none;
+      font-size: 40px;
+      color: white;
+      cursor: pointer;
+    }
+
+    /* Back Button */
+    .back-btn {
+      margin-bottom: 20px;
+      padding: 12px 20px;
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    .back-btn:hover {
+      background-color: #357ABD;
+    }
+
+    /* Footer Link */
+    .footer-link {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+
+    .footer-link a {
+      color: var(--header-color);
+      text-decoration: none;
+    }
+
+    .footer-link a:hover {
+      text-decoration: underline;
+    }
+
+    /* Overlay */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      z-index: 999;
+    }
+
+    /* Settings Popup */
+    .settings-popup {
+      display: none;
+      position: fixed;
+      top: 5%;
+      left: 50%;
+      transform: translate(-50%, -5%);
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      z-index: 1000;
+      width: 600px;
+      max-width: 90%;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      overflow-y: auto;
+      max-height: 90%;
+    }
+
+    .settings-popup h3 {
+      margin-top: 0;
+    }
+
+    .settings-tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+    }
+
+    .settings-tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      background-color: #f5f5f5;
+      border-bottom: 2px solid transparent;
+    }
+
+    .settings-tab.active {
+      border-bottom: 2px solid var(--header-color);
+      background-color: #fff;
+      font-weight: bold;
+    }
+
+    .settings-content {
+      display: none;
+    }
+
+    .settings-content.active {
+      display: block;
+    }
+
+    .settings-popup label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .settings-popup label input,
+    .settings-popup label textarea,
+    .settings-popup .color-picker input {
+      margin-top: 5px;
+      width: 100%;
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .settings-popup .color-picker {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .settings-popup .color-picker label {
+      margin-right: 10px;
+      margin-bottom: 0;
+      flex: 1;
+    }
+
+    .settings-popup .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .settings-popup button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    /* Button Styles */
+    button {
+      padding: 12px 20px;
+      background-color: var(--button-bg-color);
+      color: var(--button-text-color);
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: #357ABD;
+    }
+
+    /* Background Image */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: var(--background-image);
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      z-index: -1;
+      opacity: 0.5;
+    }
+
+    /* Remove Zap Buttons from Individual Items */
+    .zap-btn {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1 id="pageTitle">Author's Uploads</h1>
+    <!-- Zap Button in Header -->
+    <button class="header-zap-btn" id="headerZapBtn">⚡</button>
+    <!-- Profile Pic and Sign In Button -->
+    <div class="header-right">
+      <button id="signInBtn">Sign In</button>
+      <div class="profile-pic" id="profilePic" style="display: none;">
+        <span class="emoji">🤖</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="author-page">
+    <button class="back-btn" onclick="window.location.href='index.html';">Back to Uploaders</button>
+    <h2 id="authorName">Author's Uploads</h2>
+    <div class="about-me" id="aboutMeSection"></div>
+    <div class="uploads-container" id="authorUploadsContainer"></div>
+    <div class="footer-link">
+      <a href="index.html" target="_blank">Back to Media Uploader</a>
+    </div>
+  </div>
+
+  <!-- Popup for large media -->
+  <div class="popup" id="popup">
+    <div class="popup-content" id="popupContent">
+      <button class="close-btn" id="closePopupBtn">&times;</button>
+    </div>
+  </div>
+
+  <!-- Overlay for Settings Popup -->
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Settings Popup -->
+  <div class="settings-popup" id="settingsPopup">
+    <button class="close-btn" id="closeSettingsBtn">&times;</button>
+    <h3>Settings</h3>
+    <div class="settings-tabs">
+      <div class="settings-tab active" data-tab="generalTab">General</div>
+      <div class="settings-tab" data-tab="appearanceTab">Appearance</div>
+      <div class="settings-tab" data-tab="nwcTab">NWC Settings</div>
+    </div>
+    <div class="settings-content active" id="generalTab">
+      <label>
+        Page Name:
+        <input type="text" id="pageNameInput" placeholder="Enter page name">
+      </label>
+      <label>
+        About Me:
+        <textarea id="aboutMeInput" placeholder="Tell us about yourself"></textarea>
+      </label>
+      <label>
+        Thumbnail Picture URL:
+        <input type="text" id="thumbnailUrlInput" placeholder="Enter image URL">
+      </label>
+      <label>
+        Background Image URL:
+        <input type="text" id="backgroundImageInput" placeholder="Enter image URL">
+      </label>
+    </div>
+    <div class="settings-content" id="appearanceTab">
+      <div class="color-picker">
+        <label for="headerColorInput">Header Color:</label>
+        <input type="color" id="headerColorInput" value="#4a90e2">
+      </div>
+      <div class="color-picker">
+        <label for="backgroundColorInput">Background Color:</label>
+        <input type="color" id="backgroundColorInput" value="#f9f9f9">
+      </div>
+      <div class="color-picker">
+        <label for="textColorInput">Text Color:</label>
+        <input type="color" id="textColorInput" value="#333333">
+      </div>
+      <div class="color-picker">
+        <label for="buttonBgColorInput">Button Background Color:</label>
+        <input type="color" id="buttonBgColorInput" value="#4a90e2">
+      </div>
+      <div class="color-picker">
+        <label for="buttonTextColorInput">Button Text Color:</label>
+        <input type="color" id="buttonTextColorInput" value="#ffffff">
+      </div>
+    </div>
+    <!-- NWC Settings Tab -->
+    <div class="settings-content" id="nwcTab">
+      <label>
+        NWC Relay URL:
+        <input type="text" id="nwcRelayUrlInput" placeholder="Enter NWC Relay URL">
+      </label>
+      <label>
+        NWC Secret:
+        <input type="text" id="nwcSecretInput" placeholder="Enter NWC Secret">
+      </label>
+    </div>
+    <button id="saveSettingsBtn">Save Settings</button>
+  </div>
+
+  <!-- JavaScript Code -->
+  <script>
+    // Wrap all JavaScript code inside DOMContentLoaded event listener
+    window.addEventListener('DOMContentLoaded', () => {
+      // Access NostrTools functions
+      const { relayInit, getEventHash } = NostrTools;
+
+      const profileRelayUrl = "wss://relay.damus.io";
+      const publishRelayUrl = "wss://relay.nostrfreaks.com";
+
+      const profilePic = document.getElementById('profilePic');
+      const signInBtn = document.getElementById('signInBtn');
+
+      const authorName = document.getElementById('authorName');
+      const authorUploadsContainer = document.getElementById('authorUploadsContainer');
+      const pageTitle = document.getElementById('pageTitle');
+      const aboutMeSection = document.getElementById('aboutMeSection');
+
+      // Popup elements
+      const popup = document.getElementById('popup');
+      const popupContent = document.getElementById('popupContent');
+      const closePopupBtn = document.getElementById('closePopupBtn');
+
+      // Settings Popup Elements
+      const settingsPopup = document.getElementById('settingsPopup');
+      const overlay = document.getElementById('overlay');
+      const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+      const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+      const settingsTabs = document.querySelectorAll('.settings-tab');
+      const settingsContents = document.querySelectorAll('.settings-content');
+
+      // Settings Inputs
+      const pageNameInput = document.getElementById('pageNameInput');
+      const aboutMeInput = document.getElementById('aboutMeInput');
+      const headerColorInput = document.getElementById('headerColorInput');
+      const backgroundColorInput = document.getElementById('backgroundColorInput');
+      const backgroundImageInput = document.getElementById('backgroundImageInput');
+      const textColorInput = document.getElementById('textColorInput');
+      const buttonBgColorInput = document.getElementById('buttonBgColorInput');
+      const buttonTextColorInput = document.getElementById('buttonTextColorInput');
+      const thumbnailUrlInput = document.getElementById('thumbnailUrlInput');
+      const nwcRelayUrlInput = document.getElementById('nwcRelayUrlInput');
+      const nwcSecretInput = document.getElementById('nwcSecretInput');
+
+      const headerZapBtn = document.getElementById('headerZapBtn');
+
+      let pubkey = '';
+      let pageOwnerPubkey = '';
+      let isOwner = false;
+
+      // User Settings
+      let pageName = "";
+      let aboutMe = "";
+      let headerColor = "#4a90e2";
+      let backgroundColor = "#f9f9f9";
+      let backgroundImage = "";
+      let thumbnailUrl = "";
+      let textColor = "#333333";
+      let buttonBgColor = "#4a90e2";
+      let buttonTextColor = "#ffffff";
+      let nwcRelayUrl = "";
+      let nwcSecret = "";
+
+      // Close Popup
+      closePopupBtn.addEventListener('click', () => {
+        popup.style.display = 'none';
+      });
+
+      // Close Settings Popup
+      closeSettingsBtn.addEventListener('click', () => {
+        settingsPopup.style.display = 'none';
+        overlay.style.display = 'none';
+      });
+
+      overlay.addEventListener('click', () => {
+        settingsPopup.style.display = 'none';
+        overlay.style.display = 'none';
+      });
+
+      // Handle Settings Tabs Switching
+      settingsTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          settingsTabs.forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+
+          settingsContents.forEach(content => content.classList.remove('active'));
+          document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+      });
+
+      // On page load, load author uploads
+      loadAuthorUploads();
+
+      // Handle Sign-In
+      signInBtn.addEventListener('click', async () => {
+        if (window.nostr) {
+          try {
+            pubkey = await window.nostr.getPublicKey();
+            localStorage.setItem('pubkey', pubkey);
+            await loadUserProfile(pubkey);
+
+            // Check if the signed-in user is the page owner
+            if (pubkey === pageOwnerPubkey) {
+              isOwner = true;
+              signInBtn.style.display = 'none';
+              profilePic.style.display = 'block';
+              await loadUserSettings();
+              enableSettingsEditing();
+            } else {
+              alert('You are not the owner of this page.');
+            }
+          } catch (error) {
+            console.error('Error during sign-in:', error);
+          }
+        } else {
+          alert('NIP-07 extension not found. Please install Alby or nos2x.');
+        }
+      });
+
+      // Load User Profile
+      async function loadUserProfile(pubkey) {
+        const profile = await fetchProfile(pubkey);
+        if (profile && profile.picture) {
+          profilePic.innerHTML = `<img src="${profile.picture}" alt="Profile Picture">`;
+        } else {
+          profilePic.innerHTML = `<img src="default-profile.png" alt="Profile Picture">`;
+        }
+        profilePic.addEventListener('click', () => {
+          settingsPopup.style.display = 'block';
+          overlay.style.display = 'block';
+        });
+      }
+
+      // Load Author's Uploads
+      async function loadAuthorUploads() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pubkeyParam = urlParams.get('pubkey');
+
+        if (!pubkeyParam) {
+          authorName.textContent = 'Author not found';
+          return;
+        }
+
+        pageOwnerPubkey = pubkeyParam;
+
+        const profile = await fetchProfile(pageOwnerPubkey);
+        let authorDisplayName = 'Author\'s Uploads';
+
+        if (profile && profile.picture) {
+          // If user is not owner, show author's profile picture
+          if (!isOwner) {
+            profilePic.innerHTML = `<img src="${profile.picture}" alt="Profile Picture">`;
+            profilePic.style.display = 'block';
+          }
+        }
+
+        if (profile && profile.nip05) {
+          authorDisplayName = `${profile.nip05}'s World`;
+        }
+
+        // Fetch Author's Settings
+        const authorSettings = await fetchAuthorSettings(pageOwnerPubkey);
+        if (authorSettings) {
+          if (authorSettings.pageName) {
+            authorDisplayName = authorSettings.pageName;
+          }
+          if (authorSettings.aboutMe) {
+            aboutMeSection.textContent = authorSettings.aboutMe;
+          }
+          if (authorSettings.headerColor) {
+            document.documentElement.style.setProperty('--header-color', authorSettings.headerColor);
+          }
+          if (authorSettings.backgroundColor) {
+            document.documentElement.style.setProperty('--background-color', authorSettings.backgroundColor);
+          }
+          if (authorSettings.backgroundImage) {
+            document.documentElement.style.setProperty('--background-image', `url('${authorSettings.backgroundImage}')`);
+          }
+          if (authorSettings.textColor) {
+            document.documentElement.style.setProperty('--text-color', authorSettings.textColor);
+          }
+          if (authorSettings.buttonBgColor) {
+            document.documentElement.style.setProperty('--button-bg-color', authorSettings.buttonBgColor);
+          }
+          if (authorSettings.buttonTextColor) {
+            document.documentElement.style.setProperty('--button-text-color', authorSettings.buttonTextColor);
+          }
+          if (authorSettings.nwcRelayUrl) {
+            nwcRelayUrl = authorSettings.nwcRelayUrl;
+          }
+          if (authorSettings.nwcSecret) {
+            nwcSecret = authorSettings.nwcSecret;
+          }
+        }
+
+        authorName.textContent = authorDisplayName;
+        pageTitle.textContent = authorDisplayName;
+
+        const filter = { kinds: [36969], authors: [pageOwnerPubkey] };
+        const notes = await queryRelay(publishRelayUrl, filter);
+
+        if (notes.length > 0) {
+          const note = notes[0];
+          const rTags = note.tags.filter(tag => tag[0] === 'r');
+          rTags.forEach(tag => {
+            const mediaUrl = tag[1];
+            const mediaName = tag[2] || 'Unnamed';
+            const mediaDescription = tag[3] || '';
+            const mediaType = getMediaType(mediaUrl);
+            const uploadItem = document.createElement('div');
+            uploadItem.classList.add('upload-item');
+
+            const mediaElement = createMediaElement(mediaUrl, mediaType);
+            uploadItem.appendChild(mediaElement);
+
+            uploadItem.innerHTML += `
+              <h4>${mediaName}</h4>
+              <p>${mediaDescription}</p>
+            `;
+            authorUploadsContainer.appendChild(uploadItem);
+
+            // Media click for popup
+            mediaElement.addEventListener('click', () => {
+              popupContent.innerHTML = `
+                <button class="close-btn" id="closePopupBtn">&times;</button>
+              `;
+              const popupMediaElement = createMediaElement(mediaUrl, mediaType);
+              popupContent.appendChild(popupMediaElement);
+
+              popup.style.display = 'flex';
+              const closeBtn = popupContent.querySelector('#closePopupBtn');
+              closeBtn.addEventListener('click', () => {
+                popup.style.display = 'none';
+              });
+            });
+          });
+        } else {
+          authorUploadsContainer.innerHTML = '<p>No uploads found.</p>';
+        }
+
+        // Check if user is already signed in and is the owner
+        if (localStorage.getItem('pubkey')) {
+          pubkey = localStorage.getItem('pubkey');
+          if (pubkey === pageOwnerPubkey) {
+            isOwner = true;
+            signInBtn.style.display = 'none';
+            profilePic.style.display = 'block';
+            await loadUserProfile(pubkey);
+            await loadUserSettings();
+            enableSettingsEditing();
+          } else {
+            signInBtn.style.display = 'inline-block';
+            profilePic.style.display = 'none';
+          }
+        }
+      }
+
+      // Fetch Author's Settings (kind 1337)
+      async function fetchAuthorSettings(authorPubkey) {
+        const filter = { kinds: [1337], authors: [authorPubkey] };
+        const settingsNotes = await queryRelay(publishRelayUrl, filter);
+        if (settingsNotes.length > 0) {
+          const settingsNote = settingsNotes[0];
+          const tags = settingsNote.tags;
+
+          const pageNameTag = tags.find(tag => tag[0] === 'pagename');
+          const pageName = pageNameTag ? pageNameTag[1] : '';
+
+          const aboutMeTag = tags.find(tag => tag[0] === 'aboutme');
+          const aboutMe = aboutMeTag ? aboutMeTag[1] : '';
+
+          const headerColorTag = tags.find(tag => tag[0] === 'headercolor');
+          const headerColor = headerColorTag ? headerColorTag[1] : '';
+
+          const backgroundColorTag = tags.find(tag => tag[0] === 'backgroundcolor');
+          const backgroundColor = backgroundColorTag ? backgroundColorTag[1] : '';
+
+          const backgroundImageTag = tags.find(tag => tag[0] === 'backgroundimage');
+          const backgroundImage = backgroundImageTag ? backgroundImageTag[1] : '';
+
+          const textColorTag = tags.find(tag => tag[0] === 'textcolor');
+          const textColor = textColorTag ? textColorTag[1] : '';
+
+          const buttonBgColorTag = tags.find(tag => tag[0] === 'buttonbgcolor');
+          const buttonBgColor = buttonBgColorTag ? buttonBgColorTag[1] : '';
+
+          const buttonTextColorTag = tags.find(tag => tag[0] === 'buttontextcolor');
+          const buttonTextColor = buttonTextColorTag ? buttonTextColorTag[1] : '';
+
+          const nwcRelayUrlTag = tags.find(tag => tag[0] === 'nwcRelayUrl');
+          const nwcRelayUrl = nwcRelayUrlTag ? nwcRelayUrlTag[1] : '';
+
+          const nwcSecretTag = tags.find(tag => tag[0] === 'nwcSecret');
+          const nwcSecret = nwcSecretTag ? nwcSecretTag[1] : '';
+
+          return {
+            pageName,
+            aboutMe,
+            headerColor,
+            backgroundColor,
+            backgroundImage,
+            textColor,
+            buttonBgColor,
+            buttonTextColor,
+            nwcRelayUrl,
+            nwcSecret
+          };
+        }
+        return null;
+      }
+
+      // Load User's Settings (if owner)
+      async function loadUserSettings() {
+        if (!isOwner) return;
+
+        const authorSettings = await fetchAuthorSettings(pubkey);
+        if (authorSettings) {
+          if (authorSettings.pageName) {
+            pageNameInput.value = authorSettings.pageName;
+          }
+          if (authorSettings.aboutMe) {
+            aboutMeInput.value = authorSettings.aboutMe;
+          }
+          if (authorSettings.headerColor) {
+            headerColorInput.value = authorSettings.headerColor;
+          }
+          if (authorSettings.backgroundColor) {
+            backgroundColorInput.value = authorSettings.backgroundColor;
+          }
+          if (authorSettings.backgroundImage) {
+            backgroundImageInput.value = authorSettings.backgroundImage;
+          }
+          if (authorSettings.textColor) {
+            textColorInput.value = authorSettings.textColor;
+          }
+          if (authorSettings.buttonBgColor) {
+            buttonBgColorInput.value = authorSettings.buttonBgColor;
+          }
+          if (authorSettings.buttonTextColor) {
+            buttonTextColorInput.value = authorSettings.buttonTextColor;
+          }
+          if (authorSettings.nwcRelayUrl) {
+            nwcRelayUrlInput.value = authorSettings.nwcRelayUrl;
+          }
+          if (authorSettings.nwcSecret) {
+            nwcSecretInput.value = authorSettings.nwcSecret;
+          }
+        }
+      }
+
+      // Enable Settings Editing (if owner)
+      function enableSettingsEditing() {
+        // Apply styles immediately
+        document.documentElement.style.setProperty('--header-color', headerColorInput.value);
+        document.documentElement.style.setProperty('--background-color', backgroundColorInput.value);
+        document.documentElement.style.setProperty('--text-color', textColorInput.value);
+        document.documentElement.style.setProperty('--button-bg-color', buttonBgColorInput.value);
+        document.documentElement.style.setProperty('--button-text-color', buttonTextColorInput.value);
+        if (backgroundImageInput.value) {
+          document.documentElement.style.setProperty('--background-image', `url('${backgroundImageInput.value}')`);
+        } else {
+          document.documentElement.style.setProperty('--background-image', 'none');
+        }
+      }
+
+      // Save Settings
+      saveSettingsBtn.addEventListener('click', async () => {
+        if (!isOwner) {
+          alert('You are not authorized to edit these settings.');
+          return;
+        }
+
+        pageName = pageNameInput.value.trim();
+        aboutMe = aboutMeInput.value.trim();
+        headerColor = headerColorInput.value;
+        backgroundColor = backgroundColorInput.value;
+        backgroundImage = backgroundImageInput.value.trim();
+        textColor = textColorInput.value;
+        buttonBgColor = buttonBgColorInput.value;
+        buttonTextColor = buttonTextColorInput.value;
+        nwcRelayUrl = nwcRelayUrlInput.value.trim();
+        nwcSecret = nwcSecretInput.value.trim();
+
+        // Apply styles immediately
+        document.documentElement.style.setProperty('--header-color', headerColor);
+        document.documentElement.style.setProperty('--background-color', backgroundColor);
+        if (backgroundImage) {
+          document.documentElement.style.setProperty('--background-image', `url('${backgroundImage}')`);
+        } else {
+          document.documentElement.style.setProperty('--background-image', 'none');
+        }
+        document.documentElement.style.setProperty('--text-color', textColor);
+        document.documentElement.style.setProperty('--button-bg-color', buttonBgColor);
+        document.documentElement.style.setProperty('--button-text-color', buttonTextColor);
+
+        // Prepare event
+        const tags = [
+          ['pagename', pageName],
+          ['aboutme', aboutMe],
+          ['headercolor', headerColor],
+          ['backgroundcolor', backgroundColor],
+          ['backgroundimage', backgroundImage],
+          ['textcolor', textColor],
+          ['buttonbgcolor', buttonBgColor],
+          ['buttontextcolor', buttonTextColor],
+          ['nwcRelayUrl', nwcRelayUrl],
+          ['nwcSecret', nwcSecret]
+        ];
+
+        let event = {
+          kind: 1337,
+          pubkey: pubkey,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: tags,
+          content: '',
+        };
+
+        event.id = getEventHash(event);
+        event = await window.nostr.signEvent(event);
+
+        // Publish the event
+        await publishEvent(event);
+        alert('Settings saved.');
+        settingsPopup.style.display = 'none';
+        overlay.style.display = 'none';
+
+        // Update displayed settings
+        authorName.textContent = pageName || 'Author\'s Uploads';
+        aboutMeSection.textContent = aboutMe || '';
+      });
+
+      // Fetch Profile (Kind 0)
+      async function fetchProfile(pubkey) {
+        const filter = { kinds: [0], authors: [pubkey] };
+        const profiles = await queryRelay(profileRelayUrl, filter);
+        if (profiles.length > 0) {
+          return JSON.parse(profiles[0].content);
+        }
+        return null;
+      }
+
+      // Query a single relay
+      async function queryRelay(relayUrl, filter) {
+        const events = [];
+        try {
+          const relay = relayInit(relayUrl);
+          await relay.connect();
+          const sub = relay.sub([filter]);
+          sub.on('event', event => {
+            events.push(event);
+          });
+          await new Promise(resolve => {
+            sub.on('eose', () => {
+              sub.unsub();
+              relay.close();
+              resolve();
+            });
+          });
+        } catch (error) {
+          console.error(`Error querying relay ${relayUrl}:`, error);
+        }
+        return events;
+      }
+
+      // Publish Event to a single relay
+      async function publishEvent(event) {
+        const relayUrl = publishRelayUrl;
+        try {
+          const relay = relayInit(relayUrl);
+          await relay.connect();
+          const pub = relay.publish(event);
+          await new Promise((resolve, reject) => {
+            pub.on('ok', () => {
+              console.log(`Event published to ${relayUrl}`);
+              relay.close();
+              resolve();
+            });
+            pub.on('failed', reason => {
+              console.error(`Failed to publish to ${relayUrl}: ${reason}`);
+              relay.close();
+              reject(reason);
+            });
+          });
+        } catch (error) {
+          console.error(`Error publishing to relay ${relayUrl}:`, error);
+        }
+      }
+
+      // Get Media Type
+      function getMediaType(url) {
+        const extension = url.split('.').pop().split(/\#|\?/)[0].toLowerCase();
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+        const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
+        const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
+
+        if (imageExtensions.includes(extension)) {
+          return 'image';
+        } else if (videoExtensions.includes(extension)) {
+          return 'video';
+        } else if (audioExtensions.includes(extension)) {
+          return 'audio';
+        } else {
+          return 'unknown';
+        }
+      }
+
+      // Create Media Element
+      function createMediaElement(url, type) {
+        let element;
+        if (type === 'image') {
+          element = document.createElement('img');
+          element.src = url;
+        } else if (type === 'video') {
+          element = document.createElement('video');
+          element.src = url;
+          element.controls = true;
+        } else if (type === 'audio') {
+          element = document.createElement('audio');
+          element.src = url;
+          element.controls = true;
+        } else {
+          element = document.createElement('div');
+          element.textContent = 'Unsupported media type';
+        }
+        element.style.borderRadius = '8px';
+        element.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+        element.style.cursor = 'pointer';
+        return element;
+      }
+
+      // Zap Button in Header
+      headerZapBtn.addEventListener('click', () => {
+        initiateZapProcess(pageOwnerPubkey);
+      });
+
+      // Initiate Zap Process
+      async function initiateZapProcess(recipientPubkey) {
+        try {
+          // Ensure user is signed in
+          if (!pubkey) {
+            alert('Please sign in to send a zap.');
+            return;
+          }
+
+          // Fetch recipient's profile
+          const recipientProfile = await fetchProfile(recipientPubkey);
+          if (!recipientProfile) {
+            alert('Recipient profile not found.');
+            return;
+          }
+
+          // Extract Lightning Address (lud16 or lud06)
+          const lightningAddress = recipientProfile.lud16 || recipientProfile.lud06;
+          if (!lightningAddress) {
+            alert('Recipient does not have a Lightning Address.');
+            return;
+          }
+
+          // Get the LNURL Pay endpoint from the Lightning Address
+          const lnurlData = await getLnurlDataFromLightningAddress(lightningAddress);
+          const { callback: lnurlCallback, minSendable, maxSendable, allowsNostr, nostrPubkey } = lnurlData;
+
+          if (!allowsNostr || !nostrPubkey) {
+            alert('Recipient does not support zaps.');
+            return;
+          }
+
+          // Prompt for amount in sats
+          const amountInSats = prompt('Enter amount in sats to zap:', '1000');
+          const amountInMsats = parseInt(amountInSats) * 1000;
+
+          if (isNaN(amountInMsats) || amountInMsats <= 0) {
+            alert('Invalid amount.');
+            return;
+          }
+
+          if (amountInMsats < minSendable || amountInMsats > maxSendable) {
+            alert(`Amount must be between ${minSendable / 1000} and ${maxSendable / 1000} sats.`);
+            return;
+          }
+
+          // Create a Zap request event
+          const zapRequestEvent = await createZapRequestEvent(recipientPubkey, lnurlCallback, amountInMsats);
+
+          // Send Zap request and get invoice
+          const invoice = await sendZapRequest(zapRequestEvent, lnurlCallback, amountInMsats);
+
+          // Prompt the user to pay the invoice
+          await promptUserToPayInvoice(invoice);
+
+          alert('Zap sent successfully!');
+        } catch (error) {
+          console.error('Error initiating zap:', error);
+          alert(`Failed to send zap: ${error.message}`);
+        }
+      }
+
+      // Fetch LNURL Data from Lightning Address
+      async function getLnurlDataFromLightningAddress(lightningAddress) {
+        if (lightningAddress.includes('@')) {
+          // It's a Lightning Address (lud16)
+          const [name, domain] = lightningAddress.split('@');
+          const url = `https://${domain}/.well-known/lnurlp/${name}`;
+          const response = await fetch(url);
+          const data = await response.json();
+          if (data && data.callback) {
+            return data;
+          } else {
+            throw new Error('Invalid LNURL Pay endpoint');
+          }
+        } else if (lightningAddress.startsWith('lnurl')) {
+          // It's an LNURL (lud06)
+          // Decode the LNURL (bech32 decoding)
+          const lnurlDecoded = decodeBech32(lightningAddress);
+          const response = await fetch(lnurlDecoded);
+          const data = await response.json();
+          if (data && data.callback) {
+            return data;
+          } else {
+            throw new Error('Invalid LNURL Pay endpoint');
+          }
+        } else {
+          throw new Error('Invalid Lightning Address');
+        }
+      }
+
+      // Helper function to decode bech32 (lnurl)
+      function decodeBech32(bech32String) {
+        try {
+          const decoded = bech32.decode(bech32String, 1500);
+          const data = bech32.fromWords(decoded.words);
+          return Buffer.from(data).toString('utf8');
+        } catch (error) {
+          console.error('Error decoding bech32:', error);
+          return null;
+        }
+      }
+
+      // Create Zap Request Event
+      async function createZapRequestEvent(recipientPubkey, lnurlCallback, amountInMsats) {
+        const senderPubkey = pubkey; // Ensure the user is signed in
+
+        // Build tags
+        const tags = [
+          ['relays', publishRelayUrl],
+          ['amount', amountInMsats.toString()],
+          ['lnurl', lnurlCallback],
+          ['p', recipientPubkey],
+        ];
+
+        const zapRequestEvent = {
+          kind: 9734,
+          pubkey: senderPubkey,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: tags,
+          content: '', // Optional message can be included here
+        };
+
+        zapRequestEvent.id = getEventHash(zapRequestEvent);
+        zapRequestEvent = await window.nostr.signEvent(zapRequestEvent);
+
+        return zapRequestEvent;
+      }
+
+      // Send Zap Request
+      async function sendZapRequest(zapRequestEvent, lnurlCallback, amountInMsats) {
+        const params = new URLSearchParams({
+          amount: amountInMsats.toString(),
+          nostr: JSON.stringify(zapRequestEvent),
+        });
+
+        const callbackUrl = `${lnurlCallback}?${params.toString()}`;
+        const response = await fetch(callbackUrl);
+        const data = await response.json();
+
+        if (data.pr) {
+          return data.pr; // Payment Request (invoice)
+        } else if (data.reason) {
+          throw new Error(`LNURL Error: ${data.reason}`);
+        } else {
+          throw new Error('Failed to get invoice from LNURL callback');
+        }
+      }
+
+      // Prompt User to Pay Invoice
+      async function promptUserToPayInvoice(invoice) {
+        try {
+          // Check if WebLN is available
+          if (window.webln) {
+            await window.webln.enable();
+            const result = await window.webln.sendPayment(invoice);
+            console.log('Payment successful:', result);
+          } else {
+            // Use Bitcoin Connect to launch payment modal
+            await launchPaymentModal({
+              invoice: invoice,
+              onPaid: ({ preimage }) => {
+                console.log('Payment successful:', preimage);
+                alert('Zap sent successfully!');
+              },
+            });
+          }
+        } catch (error) {
+          console.error('Error during payment:', error);
+          // Fallback: Display the invoice and ask the user to pay manually
+          const userConfirmed = confirm(`Please pay the following invoice:\n${invoice}`);
+          if (!userConfirmed) {
+            throw new Error('User canceled payment');
+          }
+        }
+      }
+
+    });
+  </script>
+
+</body>
+</html>
